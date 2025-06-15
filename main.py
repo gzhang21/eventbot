@@ -21,8 +21,18 @@ import google.generativeai as genai # Added for Gemini API
 load_dotenv()
 
 # Configure Google Gemini API
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-gemini_model = genai.GenerativeModel('gemini-pro') # Initialize Gemini model
+genai.configure(api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")) # Prefer GEMINI_API_KEY, fallback to GOOGLE_API_KEY
+
+try:
+    print("Listing available Gemini models...")
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            print(f"  Found model: {m.name} (supports generateContent)")
+except Exception as e:
+    print(f"Error listing Gemini models: {e}")
+    print("Please ensure your API key is correct and has the necessary permissions.")
+
+gemini_model = genai.GenerativeModel('models/gemini-1.5-pro-latest') # Updated to use the latest Pro model
 
 # Initialize GPT4All # Commented out
 # print("Initializing GPT4All model...") # Commented out
