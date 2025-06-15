@@ -14,15 +14,15 @@ import traceback
 import re
 import calendar
 import random
-from gpt4all import GPT4All
+# from gpt4all import GPT4All # Commented out for easier deployment on free tiers
 
 # Load environment variables
 load_dotenv()
 
 # Initialize GPT4All
-print("Initializing GPT4All model...")
-model = GPT4All("mistral-7b-instruct-v0.1.Q4_0.gguf")
-print("Model initialized successfully")
+# print("Initializing GPT4All model...") # Commented out
+# model = GPT4All("mistral-7b-instruct-v0.1.Q4_0.gguf") # Commented out
+# print("Model initialized successfully") # Commented out
 
 app = FastAPI()
 
@@ -809,6 +809,11 @@ def get_events_near_location(location: str, date_range: Tuple[datetime, datetime
 def get_conversation_response(text: str, context: Dict[str, Any] = None) -> str:
     """Generate a conversational response based on user input."""
     try:
+        # If GPT4All model is not loaded (e.g., on free tier), use template response
+        if 'model' not in globals() or globals().get('model') is None:
+            print("GPT4All model not available, using template response.")
+            return get_template_response(text)
+
         # Create a system prompt that defines the chatbot's role
         system_prompt = """You are a friendly event chatbot assistant. You help users find events and activities they might enjoy.
         You are knowledgeable about various types of events including concerts, sports, arts, and more.
@@ -822,7 +827,7 @@ def get_conversation_response(text: str, context: Dict[str, Any] = None) -> str:
         
         print("Generating response with GPT4All...")
         # Generate response using GPT4All with correct parameters
-        response = model.generate(
+        response = globals()['model'].generate(
             prompt=full_prompt,
             n_predict=100,
             temp=0.7,
@@ -1318,4 +1323,5 @@ async def chat(message: str = Form(...), location: str = Form(default="")):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8081)
+    # Render provides the PORT environment variable
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8081)))
