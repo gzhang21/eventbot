@@ -14,12 +14,17 @@ import traceback
 import re
 import calendar
 import random
-# from gpt4all import GPT4All # Commented out for easier deployment on free tiers
+# from gpt4all import GPT4All # Commented out for Gemini API
+import google.generativeai as genai # Added for Gemini API
 
 # Load environment variables
 load_dotenv()
 
-# Initialize GPT4All
+# Configure Google Gemini API
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+gemini_model = genai.GenerativeModel('gemini-pro') # Initialize Gemini model
+
+# Initialize GPT4All # Commented out
 # print("Initializing GPT4All model...") # Commented out
 # model = GPT4All("mistral-7b-instruct-v0.1.Q4_0.gguf") # Commented out
 # print("Model initialized successfully") # Commented out
@@ -809,44 +814,42 @@ def get_events_near_location(location: str, date_range: Tuple[datetime, datetime
 def get_conversation_response(text: str, context: Dict[str, Any] = None) -> str:
     """Generate a conversational response based on user input."""
     try:
-        # If GPT4All model is not loaded (e.g., on free tier), use template response
-        if 'model' not in globals() or globals().get('model') is None:
-            print("GPT4All model not available, using template response.")
+        # Use Gemini API instead of local GPT4All
+        if 'gemini_model' not in globals() or globals().get('gemini_model') is None:
+            print("Gemini model not configured, using template response.")
             return get_template_response(text)
 
         # Create a system prompt that defines the chatbot's role
         system_prompt = """You are a friendly event chatbot assistant. You help users find events and activities they might enjoy.
         You are knowledgeable about various types of events including concerts, sports, arts, and more.
         Keep your responses friendly, concise, and focused on helping users discover events."""
-        
+
         # Combine the context with the user's message
         if context and context.get('location'):
             full_prompt = f"{system_prompt}\nUser's location: {context['location']}\nUser: {text}\nAssistant:"
         else:
             full_prompt = f"{system_prompt}\nUser: {text}\nAssistant:"
-        
-        print("Generating response with GPT4All...")
-        # Generate response using GPT4All with correct parameters
-        response = globals()['model'].generate(
-            prompt=full_prompt,
-            n_predict=100,
-            temp=0.7,
-            repeat_penalty=1.18,
-            top_k=40,
-            top_p=0.9,
-            streaming=False
+
+        print("Generating response with Google Gemini API...")
+        # Generate response using Gemini
+        response = globals()['gemini_model'].generate_content(
+            full_prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.7,
+                max_output_tokens=100, # Max tokens for response
+            )
         )
         
-        # Clean up the response
-        response = response.strip()
-        print(f"GPT4All response: {response}")
-        
+        # Extract text from the response
+        generated_text = response.text.strip()
+        print(f"Gemini API response: {generated_text}")
+
         # If the response is empty or too short, fall back to template responses
-        if len(response) < 10:
-            print("Response too short, falling back to template")
+        if not generated_text or len(generated_text) < 10:
+            print("Gemini response too short, falling back to template")
             return get_template_response(text)
             
-        return response
+        return generated_text
 
     except Exception as e:
         print(f"Error in conversation response: {str(e)}")
